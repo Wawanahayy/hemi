@@ -1,0 +1,17 @@
+{
+  "name": "hemi",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "node test.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "hemi-viem": "^1.5.0",
+    "viem": "^2.21.18",
+    "winston": "^3.3.3"
+  }
+}
