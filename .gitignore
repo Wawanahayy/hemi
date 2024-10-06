@@ -1,0 +1,14 @@
+# Node.js dependencies
+node_modules/
+
+npm-debug.log
+yarn-error.log
+
+.env
+config.js
+
+dist/
+build/
+
+.idea/
+.vscode/
