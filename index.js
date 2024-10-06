@@ -1,21 +1,27 @@
 import { http, createPublicClient, parseEther, encodeFunctionData } from "viem";
 import { hemiPublicBitcoinKitActions, hemiPublicOpNodeActions, hemiSepolia } from "hemi-viem";
-import { privateKeyToAccount } from 'viem/accounts';
-import { sepolia } from "viem/chains";
+import { ethers } from 'ethers';
 import logger from './logger.js'; // Mengimpor logger
 import hemiABI from './abi.js';
 import WETHABI from './WETH.js';
 import UNIABI from './uniswap.js';
 import { accounts } from './config.js'; // Mengimpor file konfigurasi
+import readline from 'readline'; // Mengimpor readline untuk input interaktif
+
+const provider = new ethers.JsonRpcProvider('https://testnet.rpc.hemi.network/rpc'); // Menambahkan provider
+
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout
+});
 
 // Kelas EthereumClient, digunakan untuk berinteraksi dengan blockchain Ethereum
 class EthereumClient {
   constructor(privateKey) {
-    this.parameters = { chain: sepolia, transport: http() };
-    this.account = privateKeyToAccount(privateKey); // Mengimpor wallet dari private key
+    this.account = new ethers.Wallet(privateKey, provider); // Menghubungkan wallet ke provider
 
     this.publicClient = createPublicClient({
-      ...this.parameters,
+      transport: http('https://testnet.rpc.hemi.network/rpc'),
     });
   }
 
@@ -25,9 +31,8 @@ class EthereumClient {
     const sendEth = parseEther(amount.toString());
 
     // Memeriksa apakah saldo lebih besar dari jumlah deposit
-    const { address } = this.account;
     const balance = await this.publicClient.getBalance({
-      address,
+      address: this.account.address,
     });
 
     if (balance < sendEth) {
@@ -39,18 +44,18 @@ class EthereumClient {
     const data = encodeFunctionData({
       abi: hemiABI,
       functionName: 'depositETH',
-      args: [minGasLimit, extraData]
+      args: [minGasLimit, extraData],
     });
 
     try {
-      // Mengirim transaksi
-      const tx = await this.publicClient.sendTransaction({
+      // Mengirim transaksi menggunakan ethers.js
+      const tx = await this.account.sendTransaction({
         to: proxyContractAddress,
         data,
         value: sendEth,
       });
 
-      logger.info(`Transaksi terkirim: ${tx}`); // Menggunakan logger untuk mencatat informasi transaksi
+      logger.info(`Transaksi terkirim: ${tx.hash}`); // Menggunakan logger untuk mencatat informasi transaksi
     } catch (error) {
       logger.error(`Terjadi kesalahan saat mengirim transaksi: ${error.message}`); // Menggunakan logger untuk mencatat kesalahan
       throw error; // Membuang error agar bisa ditangkap di luar
@@ -61,23 +66,22 @@ class EthereumClient {
 // Kelas HemiSepolia, digunakan untuk menangani operasi terkait Hemi Sepolia
 class HemiSepolia {
   constructor(privateKey) {
-    this.parameters = { chain: hemiSepolia, transport: http() };
-    this.account = privateKeyToAccount(privateKey); // Mengimpor wallet dari private key
+    this.account = new ethers.Wallet(privateKey, provider); // Menghubungkan wallet ke provider
 
-    this.publicClient = createPublicClient(this.parameters)
-      .extend(hemiPublicOpNodeActions())
-      .extend(hemiPublicBitcoinKitActions());
+    this.publicClient = createPublicClient({
+      chain: hemiSepolia,
+      transport: http('https://testnet.rpc.hemi.network/rpc'),
+    });
   }
 
   // Metode untuk menukar WETH
-  async swapWeth() {
+  async swapWeth(sendEthAmount) {
     const WethContractAddress = '0x0C8aFD1b58aa2A5bAd2414B861D8A7fF898eDC3A';
-    const sendEth = parseEther('0.00001');
+    const sendEth = parseEther(sendEthAmount.toString());
 
     // Memeriksa saldo
-    const { address } = this.account;
     const balance = await this.publicClient.getBalance({
-      address,
+      address: this.account.address,
     });
 
     if (balance < sendEth) {
@@ -91,14 +95,14 @@ class HemiSepolia {
     });
 
     try {
-      // Mengirim transaksi
-      const tx = await this.publicClient.sendTransaction({
+      // Mengirim transaksi menggunakan ethers.js
+      const tx = await this.account.sendTransaction({
         to: WethContractAddress,
         data,
         value: sendEth,
       });
 
-      logger.info(`Transaksi WETH terkirim: ${tx}`); // Menggunakan logger untuk mencatat informasi transaksi
+      logger.info(`Transaksi WETH terkirim: ${tx.hash}`); // Menggunakan logger untuk mencatat informasi transaksi
     } catch (error) {
       logger.error(`Terjadi kesalahan saat menukar WETH: ${error.message}`); // Menggunakan logger untuk mencatat kesalahan
       throw error; // Membuang error agar bisa ditangkap di luar
@@ -106,13 +110,12 @@ class HemiSepolia {
   }
 
   // Metode untuk menukar DAI
-  async swapDai() {
+  async swapDai(sendEthAmount) {
     const UniswapContractAddress = '0xA18019E62f266C2E17e33398448e4105324e0d0F';
-    const sendEth = parseEther('0.00001');
+    const sendEth = parseEther(sendEthAmount.toString());
 
-    const { address } = this.account;
     const balance = await this.publicClient.getBalance({
-      address,
+      address: this.account.address,
     });
 
     if (balance < sendEth) {
@@ -135,20 +138,27 @@ class HemiSepolia {
     });
 
     try {
-      // Mengirim transaksi
-      const tx = await this.publicClient.sendTransaction({
+      // Mengirim transaksi menggunakan ethers.js
+      const tx = await this.account.sendTransaction({
         to: UniswapContractAddress,
         data,
         value: sendEth,
       });
 
-      logger.info(`Transaksi DAI terkirim: ${tx}`); // Menggunakan logger untuk mencatat informasi transaksi
+      logger.info(`Transaksi DAI terkirim: ${tx.hash}`); // Menggunakan logger untuk mencatat informasi transaksi
     } catch (error) {
       logger.error(`Terjadi kesalahan saat menukar DAI: ${error.message}`); // Menggunakan logger untuk mencatat kesalahan
       throw error; // Membuang error agar bisa ditangkap di luar
     }
   }
 }
+
+// Fungsi untuk meminta input dari pengguna
+const askQuestion = (question) => {
+  return new Promise((resolve) => {
+    rl.question(question, resolve);
+  });
+};
 
 // Contoh penggunaan
 (async () => {
@@ -160,37 +170,30 @@ class HemiSepolia {
 
     try {
       // Mengubah private key menjadi objek akun
-      const accountInfo = privateKeyToAccount(formattedPrivateKey);
+      const accountInfo = new ethers.Wallet(formattedPrivateKey, provider); // Menghubungkan wallet ke provider
     } catch (error) {
-      logger.error(`Kesalahan saat mengonversi akun: ${error.message} (Private key: ${privateKey})`);
-      continue; // Lewati akun saat ini, lanjutkan ke akun berikutnya
+      logger.error(`Kesalahan saat mengonversi private key: ${error.message}`); // Menggunakan logger untuk mencatat kesalahan
+      continue; // Melanjutkan ke akun berikutnya jika ada kesalahan
     }
 
-    try {
-      // Membuat klien Ethereum dan melakukan deposit
-      const ethClient = new EthereumClient(formattedPrivateKey);
-      await ethClient.depositETH(200000, '0x', 0.1);
-    } catch (error) {
-      logger.error(`Kesalahan saat deposit: ${error.message} (Private key: ${privateKey})`);
-      continue; // Lewati akun saat ini, lanjutkan ke akun berikutnya
-    }
+    // Meminta input dari pengguna
+    const swapAmount = await askQuestion('Masukkan jumlah ETH yang ingin Anda tukar: ');
+    const swapCount = await askQuestion('Masukkan jumlah kali Anda ingin melakukan swap: ');
 
-    await new Promise(resolve => setTimeout(resolve, 5000));
+    // Membuat instance EthereumClient dan HemiSepolia
+    const ethClient = new EthereumClient(formattedPrivateKey);
+    const hemiSepoliaClient = new HemiSepolia(formattedPrivateKey);
 
-    try {
-      // Membuat klien Hemi Sepolia dan melakukan swap WETH dan DAI
-      const hemiSepolia = new HemiSepolia(formattedPrivateKey);
-      // Tukar WETH
-      await hemiSepolia.swapWeth();
-
-      await new Promise(resolve => setTimeout(resolve, 5000));
-
-      // Tukar DAI
-      await hemiSepolia.swapDai();
-    } catch (error) {
-      logger.error(`Kesalahan saat operasi Hemi Sepolia: ${error.message} (Private key: ${privateKey})`);
+    // Menyetor ETH dan menukar token
+    for (let i = 0; i < parseInt(swapCount); i++) {
+      try {
+        await ethClient.depositETH(50000, '0x0', swapAmount); // Sesuaikan jumlah dan nilai sesuai kebutuhan
+        await hemiSepoliaClient.swapWeth(swapAmount);
+        await hemiSepoliaClient.swapDai(swapAmount);
+      } catch (error) {
+        logger.error(`Kesalahan saat melakukan deposit atau swap: ${error.message}`); // Menggunakan logger untuk mencatat kesalahan
+      }
     }
   }
-
-  process.exit(0);
+  rl.close(); // Menutup readline
 })();
