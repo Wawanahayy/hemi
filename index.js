@@ -1,4 +1,4 @@
-import { http, createWalletClient, createPublicClient, parseEther, encodeFunctionData } from "viem";
+import { http, createPublicClient, parseEther, encodeFunctionData } from "viem";
 import { hemiPublicBitcoinKitActions, hemiPublicOpNodeActions, hemiSepolia } from "hemi-viem";
 import { privateKeyToAccount } from 'viem/accounts';
 import { sepolia } from "viem/chains";
@@ -12,13 +12,7 @@ import { accounts } from './config.js'; // Mengimpor file konfigurasi
 class EthereumClient {
   constructor(privateKey) {
     this.parameters = { chain: sepolia, transport: http() };
-    this.account = privateKeyToAccount(privateKey);
-
-    // Membuat klien dompet
-    this.walletClient = createWalletClient({
-      account: this.account,
-      ...this.parameters
-    });
+    this.account = privateKeyToAccount(privateKey); // Mengimpor wallet dari private key
 
     this.publicClient = createPublicClient({
       ...this.parameters,
@@ -50,7 +44,7 @@ class EthereumClient {
 
     try {
       // Mengirim transaksi
-      const tx = await this.walletClient.sendTransaction({
+      const tx = await this.publicClient.sendTransaction({
         to: proxyContractAddress,
         data,
         value: sendEth,
@@ -67,20 +61,12 @@ class EthereumClient {
 // Kelas HemiSepolia, digunakan untuk menangani operasi terkait Hemi Sepolia
 class HemiSepolia {
   constructor(privateKey) {
-    // Menetapkan parameter rantai dan transportasi
     this.parameters = { chain: hemiSepolia, transport: http() };
-    this.account = privateKeyToAccount(privateKey);
+    this.account = privateKeyToAccount(privateKey); // Mengimpor wallet dari private key
 
-    // Membuat klien publik
     this.publicClient = createPublicClient(this.parameters)
       .extend(hemiPublicOpNodeActions())
       .extend(hemiPublicBitcoinKitActions());
-
-    // Membuat klien dompet
-    this.walletClient = createWalletClient({
-      account: this.account,
-      ...this.parameters
-    });
   }
 
   // Metode untuk menukar WETH
@@ -106,7 +92,7 @@ class HemiSepolia {
 
     try {
       // Mengirim transaksi
-      const tx = await this.walletClient.sendTransaction({
+      const tx = await this.publicClient.sendTransaction({
         to: WethContractAddress,
         data,
         value: sendEth,
@@ -150,7 +136,7 @@ class HemiSepolia {
 
     try {
       // Mengirim transaksi
-      const tx = await this.walletClient.sendTransaction({
+      const tx = await this.publicClient.sendTransaction({
         to: UniswapContractAddress,
         data,
         value: sendEth,
